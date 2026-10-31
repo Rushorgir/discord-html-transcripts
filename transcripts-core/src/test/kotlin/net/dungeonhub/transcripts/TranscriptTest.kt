@@ -210,6 +210,7 @@ class TranscriptTest {
         assertTrue(doc.select("img[onerror]").isEmpty())
         assertTrue(doc.select("[onerror]").isEmpty())
         assertEquals(payload, doc.selectFirst(".chatlog__reference-name")!!.text())
+        assertEquals(payload, doc.selectFirst(".chatlog__embed-field-name")!!.text())
     }
 
     @Test
@@ -277,6 +278,37 @@ class TranscriptTest {
         assertEquals("Hey @TestUser, see #test-channel", preview.text().trim())
         assertNotNull(preview.selectFirst("img.emoji"))
         assertFalse(preview.html().contains("&lt;@"))
+    }
+
+    @Test
+    fun testTimesUseSystemTimeZone() = runBlocking {
+        val previousTimeZone = java.util.TimeZone.getDefault()
+        try {
+            // UTC+9, so 20:00 UTC is already the next day
+            java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("Asia/Tokyo"))
+
+            val html = DiscordHtmlTranscripts.createTranscript(MockChannel(listOf(Instant.parse("2026-07-30T20:00:00Z"))))
+            val doc = Jsoup.parse(html)
+
+            assertEquals("31 July 2026", doc.selectFirst(".chatlog__date-divider")!!.text())
+            assertEquals("05:00", doc.selectFirst(".chatlog__timestamp")!!.text())
+            assertEquals("Friday, 31 July 2026 at 05:00", doc.selectFirst(".chatlog__timestamp")!!.attr("title"))
+        } finally {
+            java.util.TimeZone.setDefault(previousTimeZone)
+        }
+    }
+
+    @Test
+    fun testMentionInLinkUrl() = runBlocking {
+        val formatted = Formatter.format("[site](https://example.com/<@123>/page)", mockServer)
+
+        // not turned into a link, so the mention can't end up inside the href
+        assertFalse(formatted.contains("<a "))
+        assertTrue(formatted.contains("<span class=\"mention\">@TestUser</span>"))
+        assertEquals(
+            "<a href=\"https://example.com/page\">site</a>",
+            Formatter.format("[site](https://example.com/page)", mockServer)
+        )
     }
 
     private inner class MockChannel(times: List<Instant>, content: String = "Message") : DiscordChannel<DiscordFramework> {

@@ -28,7 +28,8 @@ object Formatter {
     private val CODE_1: Pattern = Pattern.compile("`([^`]+?)`")
     // matched after html escaping, so the quote marker is "&gt;" instead of ">"
     private val QUOTE: Pattern = Pattern.compile("^(?:&gt;){1,3} (.*)$", Pattern.MULTILINE)
-    private val LINK: Pattern = Pattern.compile("\\[([^\\[]+)\\](\\((www|http:|https:)+[^\\s]+[\\w]\\))")
+    // the url can't contain a placeholder (\u0000), since a mention or code there would break the href
+    private val LINK: Pattern = Pattern.compile("\\[([^\\[]+)\\](\\((www|http:|https:)+[^\\s\u0000]+[\\w]\\))")
     private val NEW_LINE: Pattern = Pattern.compile("\\n")
     // Discord mention patterns: user (<@id> or <@!id>), role (<@&id>), channel (<#id>)
     private val MENTION_USER: Pattern = Pattern.compile("<@!?(\\d+)>")
