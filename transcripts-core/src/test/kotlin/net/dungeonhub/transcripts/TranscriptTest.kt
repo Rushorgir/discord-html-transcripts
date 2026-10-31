@@ -265,6 +265,20 @@ class TranscriptTest {
         assertEquals(2, lookups)
     }
 
+    @Test
+    fun testReplyPreviewResolvesMentions() = runBlocking {
+        val time = Instant.parse("2026-07-30T10:00:00Z")
+        val channel = MockChannel(listOf(time))
+        val referenced = createMockMessage(1L, "Hey <@123>, see <#789> <:pepe:42>", time, channel)
+        val reply = createMockMessage(2L, "reply", time, channel, msgReference = referenced)
+
+        val preview = Jsoup.parse(reply.transcriptify().outerHtml()).selectFirst(".chatlog__reference-link em")!!
+
+        assertEquals("Hey @TestUser, see #test-channel", preview.text().trim())
+        assertNotNull(preview.selectFirst("img.emoji"))
+        assertFalse(preview.html().contains("&lt;@"))
+    }
+
     private inner class MockChannel(times: List<Instant>, content: String = "Message") : DiscordChannel<DiscordFramework> {
         override val framework: DiscordFramework = object : DiscordFramework {}
         override val name: String = "general"
