@@ -30,5 +30,6 @@ fun GuildMessageChannel.createTranscript(): String = runBlocking {
 
 @Throws(IOException::class)
 fun GuildMessageChannel.generateTranscriptFromMessages(messages: List<Message>): String = runBlocking {
-    DiscordHtmlTranscripts.generateFromMessages(toTranscriptableChannel(), messages.map { JDAMessage(it) })
+    val channel = JDAChannel(this@generateTranscriptFromMessages)
+    DiscordHtmlTranscripts.generateFromMessages(channel, messages.map { JDAMessage(it, channel) })
 }

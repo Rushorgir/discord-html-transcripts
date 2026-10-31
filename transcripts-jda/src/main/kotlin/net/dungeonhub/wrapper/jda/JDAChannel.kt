@@ -10,10 +10,10 @@ class JDAChannel(val channel: GuildMessageChannel): DiscordChannel<JDAFramework>
         get() = JDAFramework(channel.jda)
     override val name: String
         get() = channel.name
-    override val server: DiscordServer
-        get() = JDAServer(channel.guild)
+    // shared by all messages of this channel, so looked up names are only fetched once
+    override val server: DiscordServer by lazy { JDAServer(channel.guild) }
     override val messages: List<DiscordMessage>
         get() = channel.iterableHistory.stream()
-            .map { JDAMessage(it) }
+            .map { JDAMessage(it, this) }
             .toList()
 }

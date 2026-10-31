@@ -6,11 +6,7 @@ import java.time.Instant
 
 object TestFramework : DiscordFramework
 
-data class TestServer(override val name: String, override val icon: String? = null) : DiscordServer {
-    override suspend fun getMemberName(id: Long): String? = null
-    override suspend fun getRoleName(id: Long): String? = null
-    override suspend fun getChannelName(id: Long): String? = null
-}
+data class TestServer(override val name: String, override val icon: String? = null) : DiscordServer
 
 // messages are created before the channel they're transcribed with, so they reference this one by default
 val defaultTestChannel = TestChannel("default", TestServer("Default Server"), emptyList())

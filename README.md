@@ -1,8 +1,8 @@
 # Discord HTML Transcripts
 
-Discord HTML Transcripts is a Kotlin module to generate nice looking HTML transcripts for JDA, Javacord and Kord (Kotlin-based Discord Framework). Processes discord markdown like **bold**, *italics*, ~~strikethroughs~~, and more. Nicely formats attachments and embeds. Built in XSS protection, preventing users from inserting html tags. 
+Discord HTML Transcripts is a Kotlin module to generate nice looking HTML transcripts for JDA and Kord (Kotlin-based Discord Framework). Processes discord markdown like **bold**, *italics*, ~~strikethroughs~~, and more. Resolves user, role and channel mentions, renders custom emojis and Discord timestamps, and nicely formats attachments and embeds. Built in XSS protection, preventing users from inserting html tags.
 
-**This module is designed to work with [Kord](https://github.com/kordlib/kord), [Javacord](https://github.com/Javacord/Javacord) and [JDA](https://github.com/discord-jda/JDA).**
+**This module is designed to work with [Kord](https://github.com/kordlib/kord) and [JDA](https://github.com/discord-jda/JDA).**
 
 HTML Template stolen from [DiscordChatExporter](https://github.com/Tyrrrz/DiscordChatExporter).
 
@@ -20,27 +20,29 @@ HTML Template stolen from [DiscordChatExporter](https://github.com/Tyrrrz/Discor
 ![output](https://img.derock.dev/5f5q0a.png)
 
 ## Usage
-### Example usage using the built-in message fetcher.
-This is probably not true anymore, the syntax should be fairly similar tho - check [this class](https://github.com/dungeon-hub/dungeon-hub-application/blob/2f6e16e3dbc47b1d94b9b7d3204c5afd04b1456a/src/main/kotlin/me/taubsie/dungeonhub/application/commands/TestTranscriptCommand.kt) for an example usage for Kord, the other languages should be able to be used similarily.
-```java
-DiscordHtmlTranscripts transcript = DiscordHtmlTranscripts.getInstance();
-textChannel.sendFiles(transcript.createTranscript(textChannel)).queue()
+The transcript is returned as an HTML string. Timestamps are shown in the time zone of the system generating the transcript.
+
+### Kord
+The transcript functions are `suspend` functions, so call them from a coroutine (e.g. inside an event handler).
+```kotlin
+val html = channel.createTranscript() // channel: GuildMessageChannel
 ```
 
-### Or if you prefer, you can pass in your own messages.
+### JDA (Java)
+`JDATranscripts` blocks until the transcript is generated, so don't call it from JDA's callback threads (e.g. inside `queue(...)`).
 ```java
-DiscordHtmlTranscripts transcript = DiscordHtmlTranscripts.getInstance();
-transcript.generateFromMessages(messages); // return to InputStream
+String html = JDATranscripts.createTranscript(textChannel);
+
+textChannel.sendFiles(FileUpload.fromData(html.getBytes(StandardCharsets.UTF_8), "transcript.html")).queue();
 ```
 
-### You can also put the transcript into a variable
-```java
-DiscordHtmlTranscripts transcripts = new DiscordHtmlTranscripts();
-try {
-   testChannel.sendFiles(transcripts.createTranscript(testChannel, "test.html")).queue();
-} catch (IOException e) {
-   throw new RuntimeException(e);
-}
+### JDA (Kotlin)
+```kotlin
+val html = textChannel.createTranscript()
 ```
 
-
+### Or if you prefer, you can pass in your own messages
+```java
+String html = JDATranscripts.generateTranscriptFromMessages(textChannel, messages); // messages: List<Message>
+```
+For Kord, or if you're using coroutines, use `DiscordHtmlTranscripts.generateFromMessages(channel, messages)` with the wrapped channel and messages instead.

@@ -212,6 +212,59 @@ class TranscriptTest {
         assertEquals(payload, doc.selectFirst(".chatlog__reference-name")!!.text())
     }
 
+    @Test
+    fun testCustomEmoji() = runBlocking {
+        val formatted = Formatter.format("hi <:pepe:123> <a:dance:456>", mockServer)
+
+        assertEquals(
+            "hi <img class=\"emoji\" alt=\":pepe:\" title=\":pepe:\" " +
+                "src=\"https://cdn.discordapp.com/emojis/123.png\" loading=\"lazy\"> " +
+                "<img class=\"emoji\" alt=\":dance:\" title=\":dance:\" " +
+                "src=\"https://cdn.discordapp.com/emojis/456.gif\" loading=\"lazy\">",
+            formatted
+        )
+    }
+
+    @Test
+    fun testDiscordTimestamps() = runBlocking {
+        val instant = Instant.ofEpochSecond(1_700_000_000)
+        val fullDate = TimeFormatter.formatFullDateTime(instant)
+
+        assertEquals(
+            "<span class=\"timestamp\" title=\"$fullDate\">${TimeFormatter.formatTime(instant)}</span>",
+            Formatter.format("<t:1700000000:t>", mockServer)
+        )
+        assertEquals(
+            "<span class=\"timestamp\" title=\"$fullDate\">${TimeFormatter.formatDiscordTimestamp(instant, null)}</span>",
+            Formatter.format("<t:1700000000>", mockServer)
+        )
+        assertTrue(TimeFormatter.formatDiscordTimestamp(instant, 'd').matches(Regex("\\d{2}/\\d{2}/2023")))
+        // out of range timestamps are kept as text
+        assertEquals("&lt;t:99999999999999999:R&gt;", Formatter.format("<t:99999999999999999:R>", mockServer))
+    }
+
+    @Test
+    fun testCommandMention() = runBlocking {
+        assertEquals(
+            "use <span class=\"mention\">/ticket close</span>",
+            Formatter.format("use </ticket close:123>", mockServer)
+        )
+    }
+
+    @Test
+    fun testNameCacheLooksUpEachIdOnce() = runBlocking {
+        val cache = net.dungeonhub.wrapper.NameCache()
+        var lookups = 0
+        val lookup: suspend (Long) -> String? = { lookups++; if (it == 1L) "one" else null }
+
+        repeat(3) {
+            assertEquals("one", cache.getOrLookup(1L, lookup))
+            assertNull(cache.getOrLookup(2L, lookup))
+        }
+
+        assertEquals(2, lookups)
+    }
+
     private inner class MockChannel(times: List<Instant>, content: String = "Message") : DiscordChannel<DiscordFramework> {
         override val framework: DiscordFramework = object : DiscordFramework {}
         override val name: String = "general"

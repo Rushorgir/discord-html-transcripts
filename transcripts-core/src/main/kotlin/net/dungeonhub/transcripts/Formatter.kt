@@ -2,6 +2,7 @@ package net.dungeonhub.transcripts
 
 import net.dungeonhub.wrapper.DiscordServer
 import java.awt.Color
+import java.time.Instant
 import java.util.Arrays
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.regex.Matcher
@@ -33,6 +34,12 @@ object Formatter {
     private val MENTION_USER: Pattern = Pattern.compile("<@!?(\\d+)>")
     private val MENTION_ROLE: Pattern = Pattern.compile("<@&(\\d+)>")
     private val MENTION_CHANNEL: Pattern = Pattern.compile("<#(\\d+)>")
+    // slash command mention: </name:id> or </name subcommand:id>
+    private val MENTION_COMMAND: Pattern = Pattern.compile("</([^:<>]+):(\\d+)>")
+    // custom emoji: <:name:id>, animated emoji: <a:name:id>
+    private val CUSTOM_EMOJI: Pattern = Pattern.compile("<(a?):(\\w+):(\\d+)>")
+    // Discord timestamp: <t:seconds> or <t:seconds:style>
+    private val DISCORD_TIMESTAMP: Pattern = Pattern.compile("<t:(-?\\d+)(?::([tTdDfFR]))?>")
     // a backslash in front of one of these characters removes its markdown / mention meaning
     private val ESCAPED_CHARACTER: Pattern = Pattern.compile("\\\\([\\\\*_~`<>\\[\\]()#@])")
     // escaped characters and code are matched in a single pass, so whichever comes first wins:
@@ -43,7 +50,8 @@ object Formatter {
     )
     // everything that would break if a message preview was cut in the middle of it
     private val PREVIEW_TOKENS = listOf(
-        ESCAPED_CHARACTER_OR_CODE, MENTION_USER, MENTION_ROLE, MENTION_CHANNEL, STRONG, EM, S, U, LINK
+        ESCAPED_CHARACTER_OR_CODE, MENTION_USER, MENTION_ROLE, MENTION_CHANNEL, MENTION_COMMAND, CUSTOM_EMOJI,
+        DISCORD_TIMESTAMP, STRONG, EM, S, U, LINK
     )
 
     /*
@@ -125,6 +133,26 @@ object Formatter {
         resolveMentions(MENTION_USER, '@') { server?.getMemberName(it) }
         resolveMentions(MENTION_ROLE, '@') { server?.getRoleName(it) }
         resolveMentions(MENTION_CHANNEL, '#') { server?.getChannelName(it) }
+
+        newText = placeholders.replace(newText, MENTION_COMMAND) {
+            "<span class=\"mention\">${escapeHtml("/${it.group(1)}")}</span>"
+        }
+
+        newText = placeholders.replace(newText, CUSTOM_EMOJI) {
+            val extension = if (it.group(1) == "a") "gif" else "png"
+            val name = ":${it.group(2)}:"
+            "<img class=\"emoji\" alt=\"$name\" title=\"$name\" " +
+                    "src=\"https://cdn.discordapp.com/emojis/${it.group(3)}.$extension\" loading=\"lazy\">"
+        }
+
+        newText = placeholders.replace(newText, DISCORD_TIMESTAMP) {
+            // out of range timestamps are kept as they were written
+            runCatching {
+                val instant = Instant.ofEpochSecond(it.group(1).toLong())
+                val text = TimeFormatter.formatDiscordTimestamp(instant, it.group(2)?.single())
+                "<span class=\"timestamp\" title=\"${TimeFormatter.formatFullDateTime(instant)}\">$text</span>"
+            }.getOrElse { _ -> escapeHtml(it.group()) }
+        }
 
         newText = escapeHtml(newText)
 

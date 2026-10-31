@@ -1,6 +1,5 @@
 package net.dungeonhub.wrapper.jda
 
-import net.dungeonhub.wrapper.DiscordChannel
 import net.dungeonhub.wrapper.DiscordInteraction
 import net.dungeonhub.wrapper.DiscordMessage
 import net.dungeonhub.wrapper.DiscordMessageAttachment
@@ -9,7 +8,9 @@ import net.dungeonhub.wrapper.DiscordMessageEmbed
 import net.dv8tion.jda.api.entities.Message
 import java.time.Instant
 
-class JDAMessage(val message: Message): DiscordMessage {
+class JDAMessage(val message: Message, override val channel: JDAChannel): DiscordMessage {
+    constructor(message: Message) : this(message, JDAChannel(message.guildChannel))
+
     override val id: Long
         get() = message.idLong
     override val content: String
@@ -21,11 +22,9 @@ class JDAMessage(val message: Message): DiscordMessage {
     override val creationTime: Instant
         get() = message.timeCreated.toInstant()
     override val reference: DiscordMessage?
-        get() = message.referencedMessage?.let { JDAMessage(it) }
+        get() = message.referencedMessage?.let { JDAMessage(it, channel) }
     override val author: DiscordMessageAuthor
         get() = JDAMessageAuthor(message.author, message.member)
     override val interaction: DiscordInteraction?
         get() = message.interaction?.let { JDAInteraction(it, message.author, message.member) }
-    override val channel: DiscordChannel<JDAFramework>
-        get() = JDAChannel(message.guildChannel)
 }

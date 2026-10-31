@@ -17,7 +17,7 @@ import kotlin.time.toKotlinInstant
  * Formats the timestamps shown in a transcript, in the time zone of the system generating it.
  */
 @OptIn(ExperimentalTime::class)
-object TimeFormatter {
+internal object TimeFormatter {
     private val DATE = LocalDate.Format {
         day(Padding.NONE); char(' '); monthName(MonthNames.ENGLISH_FULL); char(' '); year()
     }
@@ -26,6 +26,12 @@ object TimeFormatter {
     }
     private val TIME_WITH_SECONDS = LocalDateTime.Format {
         hour(); char(':'); minute(); char(':'); second()
+    }
+    private val SHORT_DATE = LocalDate.Format {
+        day(); char('/'); monthNumber(); char('/'); year()
+    }
+    private val DATE_TIME = LocalDateTime.Format {
+        date(DATE); char(' '); hour(); char(':'); minute()
     }
     private val FULL_DATE_TIME = LocalDateTime.Format {
         dayOfWeek(DayOfWeekNames.ENGLISH_FULL); chars(", ")
@@ -47,4 +53,20 @@ object TimeFormatter {
 
     /** e.g. `Thursday, 30 July 2026 at 14:05` */
     fun formatFullDateTime(instant: Instant): String = toLocalDateTime(instant).format(FULL_DATE_TIME)
+
+    /**
+     * Formats a Discord timestamp (`<t:seconds:style>`) the way Discord displays the given style.
+     * Relative timestamps (`R`) would depend on when the transcript is opened, so they're shown as a full date.
+     */
+    fun formatDiscordTimestamp(instant: Instant, style: Char?): String {
+        val dateTime = toLocalDateTime(instant)
+        return when (style) {
+            't' -> dateTime.format(TIME)
+            'T' -> dateTime.format(TIME_WITH_SECONDS)
+            'd' -> dateTime.date.format(SHORT_DATE)
+            'D' -> dateTime.date.format(DATE)
+            'F', 'R' -> dateTime.format(FULL_DATE_TIME)
+            else -> dateTime.format(DATE_TIME)
+        }
+    }
 }
