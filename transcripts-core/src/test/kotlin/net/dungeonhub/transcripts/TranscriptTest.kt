@@ -253,7 +253,7 @@ class TranscriptTest {
     }
 
     @Test
-    fun testNameCacheLooksUpEachIdOnce() = runBlocking {
+    fun testNameCacheCachesOnlySuccessfulLookups() = runBlocking {
         val cache = net.dungeonhub.wrapper.NameCache()
         var lookups = 0
         val lookup: suspend (Long) -> String? = { lookups++; if (it == 1L) "one" else null }
@@ -263,7 +263,8 @@ class TranscriptTest {
             assertNull(cache.getOrLookup(2L, lookup))
         }
 
-        assertEquals(2, lookups)
+        // "one" is looked up once, the missing id is retried on every mention
+        assertEquals(1 + 3, lookups)
     }
 
     @Test

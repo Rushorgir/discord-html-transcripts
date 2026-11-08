@@ -31,5 +31,11 @@ fun GuildMessageChannel.createTranscript(): String = runBlocking {
 @Throws(IOException::class)
 fun GuildMessageChannel.generateTranscriptFromMessages(messages: List<Message>): String = runBlocking {
     val channel = JDAChannel(this@generateTranscriptFromMessages)
-    DiscordHtmlTranscripts.generateFromMessages(channel, messages.map { JDAMessage(it, channel) })
+    DiscordHtmlTranscripts.generateFromMessages(
+        channel,
+        messages.map { message ->
+            // messages from another guild use their own channel, so mentions are resolved against the right guild
+            if (message.isFromGuild && message.guild != guild) JDAMessage(message) else JDAMessage(message, channel)
+        }
+    )
 }
