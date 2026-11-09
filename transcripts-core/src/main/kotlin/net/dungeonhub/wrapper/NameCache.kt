@@ -32,6 +32,11 @@ class NameCache(private val ttlNanos: Long = DEFAULT_TTL_NANOS) {
         return name
     }
 
+    /** Forgets all remembered names. */
+    fun clear() {
+        names.clear()
+    }
+
     private companion object {
         const val DEFAULT_TTL_NANOS = 5L * 60 * 1_000_000_000
     }
