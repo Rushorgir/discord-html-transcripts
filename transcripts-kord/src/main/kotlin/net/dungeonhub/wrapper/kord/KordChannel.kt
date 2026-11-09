@@ -15,9 +15,13 @@ class KordChannel(val channel: GuildMessageChannel) : DiscordChannel<KordFramewo
     override val name: String
         get() = channel.name
     // cached, since every message accesses the server while being transcribed
-    override val server: DiscordServer by lazy { runBlocking { KordServer(channel.getGuild()) } }
+    private val kordServer by lazy { runBlocking { KordServer(channel.getGuild()) } }
+    override val server: DiscordServer
+        get() = kordServer
+    // reading the messages starts a new transcript generation, so names are looked up fresh instead of stale
     override val messages: List<DiscordMessage>
         get() = runBlocking {
+            kordServer.clearCache()
             channel.withStrategy(EntitySupplyStrategy.rest).messages.map { KordMessage(it, this@KordChannel) }.toList()
         }
 }

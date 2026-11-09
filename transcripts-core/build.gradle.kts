@@ -3,7 +3,7 @@ import net.thebugmc.gradle.sonatypepublisher.PublishingType
 plugins {
     id("java-library")
     id("net.thebugmc.gradle.sonatype-central-portal-publisher").version("1.2.4")
-    kotlin("jvm") version ("2.2.20")
+    kotlin("jvm") version ("2.3.10")
 }
 
 group = "net.dungeon-hub"
@@ -20,9 +20,11 @@ dependencies {
     implementation(kotlin("stdlib-jdk8"))
     api(libs.org.jsoup.jsoup)
     implementation(libs.org.jetbrains.kotlinx.kotlinx.datetime)
+    implementation(libs.org.jetbrains.kotlinx.kotlinx.coroutines.core)
 
     testImplementation(platform("org.junit:junit-bom:5.10.0"))
     testImplementation("org.junit.jupiter:junit-jupiter")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
 }
 
@@ -67,7 +69,7 @@ centralPortal {
 }
 
 kotlin {
-    jvmToolchain(21)
+    jvmToolchain(25)
 }
 
 java {

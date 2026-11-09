@@ -20,6 +20,16 @@ class KordServer(val guild: Guild): DiscordServer {
     private val roleNames = NameCache()
     private val channelNames = NameCache()
 
+    /**
+     * Forgets all remembered names, so that the next lookups ask Discord again.
+     * Called when a new transcript generation starts on a reused channel.
+     */
+    fun clearCache() {
+        memberNames.clear()
+        roleNames.clear()
+        channelNames.clear()
+    }
+
     override suspend fun getMemberName(id: Long): String? =
         lookup { memberNames.getOrLookup(id) { guild.getMemberOrNull(Snowflake(it))?.effectiveName } }
 
@@ -34,7 +44,7 @@ class KordServer(val guild: Guild): DiscordServer {
         block()
     } catch (e: CancellationException) {
         throw e
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         null
     }
 }

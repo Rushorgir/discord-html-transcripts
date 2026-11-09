@@ -6,6 +6,7 @@ import net.dungeonhub.wrapper.NameCache
 import net.dv8tion.jda.api.entities.Guild
 import net.dv8tion.jda.api.entities.channel.attribute.IThreadContainer
 import net.dv8tion.jda.api.requests.restaction.pagination.ThreadChannelPaginationAction
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
@@ -26,7 +27,7 @@ class JDAServer(val guild: Guild): DiscordServer {
                 guild.retrieveMemberById(id).submit().await().effectiveName
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 null
             }
     }
@@ -36,6 +37,9 @@ class JDAServer(val guild: Guild): DiscordServer {
     // threads that need API requests to be found are remembered too
     private val channelNames = NameCache()
 
+    // ids that weren't found, so repeated mentions don't scan the API again during the same transcript generation
+    private val missingChannels = ConcurrentHashMap.newKeySet<Long>()
+
     /**
      * Forgets all remembered names, so that the next lookups check JDA again.
      * Called when a new transcript generation starts on a reused channel.
@@ -43,16 +47,31 @@ class JDAServer(val guild: Guild): DiscordServer {
     fun clearCache() {
         memberNames.clear()
         channelNames.clear()
+        missingChannels.clear()
     }
 
     /**
      * Uses the cached channel if possible. Threads that aren't cached are looked up through the API:
      * first the active threads of the guild, then the archived threads of every thread container
      * (public, joined private and - if permitted - all private ones). Returns null if nothing was found
-     * or the requests failed, e.g. because of missing permissions.
+     * or the requests failed, e.g. because of missing permissions. At most [MAX_THREADS_PER_SOURCE] archived
+     * threads are checked per source, and ids that weren't found are not searched again until [clearCache].
      */
-    override suspend fun getChannelName(id: Long): String? =
-        guild.getGuildChannelById(id)?.name ?: channelNames.getOrLookup(id) { retrieveThreadName(it) }
+    override suspend fun getChannelName(id: Long): String? {
+        guild.getGuildChannelById(id)?.name?.let { return it }
+
+        if (id in missingChannels) {
+            return null
+        }
+
+        val name = channelNames.getOrLookup(id) { retrieveThreadName(it) }
+
+        if (name == null) {
+            missingChannels.add(id)
+        }
+
+        return name
+    }
 
     private suspend fun retrieveThreadName(id: Long): String? {
         safely {
@@ -80,13 +99,15 @@ class JDAServer(val guild: Guild): DiscordServer {
     // pages through the threads until the one with the given id is found
     private suspend fun findThreadName(action: ThreadChannelPaginationAction, id: Long): String? {
         var found: String? = null
+        var checked = 0
 
         action.forEachAsync { thread ->
             if (thread.idLong == id) {
                 found = thread.name
                 false
             } else {
-                true
+                // stop paging once the limit is reached, large guilds can have thousands of archived threads
+                ++checked < MAX_THREADS_PER_SOURCE
             }
         }.await()
 
@@ -98,7 +119,26 @@ class JDAServer(val guild: Guild): DiscordServer {
         block()
     } catch (e: CancellationException) {
         throw e
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         null
     }
+
+    private companion object {
+        const val MAX_THREADS_PER_SOURCE = 200
+    }
+}
+
+/**
+ * Server context for messages that don't belong to a guild (e.g. direct messages): it shows the
+ * guild's name and icon, but doesn't resolve any mentions, so no guild nicknames, roles or channels leak in.
+ */
+internal class DetachedJDAServer(private val guild: Guild): DiscordServer {
+    override val name: String
+        get() = guild.name
+    override val icon: String?
+        get() = guild.iconUrl
+
+    override suspend fun getMemberName(id: Long): String? = null
+    override suspend fun getRoleName(id: Long): String? = null
+    override suspend fun getChannelName(id: Long): String? = null
 }

@@ -15,7 +15,6 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import java.lang.reflect.Proxy
 import java.util.concurrent.CompletableFuture
-import java.util.function.Predicate
 
 /**
  * Tests the thread lookup of [JDAServer] against hand-written stand-ins for the JDA interfaces.
@@ -159,5 +158,47 @@ class JDAServerTest {
         channel.messages
         assertEquals("active-thread", channel.server.getChannelName(3L))
         assertEquals(2, requests)
+    }
+
+    @Test
+    fun testMissingChannelsAreNotSearchedAgainUntilTheCacheIsCleared() = runBlocking {
+        var requests = 0
+        val server = JDAServer(guild(emptyList(), emptyList(), onActiveRequest = { requests++ }))
+
+        assertNull(server.getChannelName(9L))
+        assertNull(server.getChannelName(9L))
+        assertEquals(1, requests)
+
+        server.clearCache()
+        assertNull(server.getChannelName(9L))
+        assertEquals(2, requests)
+    }
+
+    @Test
+    fun testArchivedThreadSearchIsBounded() = runBlocking {
+        val threads = (1L..300L).map { thread(it, "thread-$it") }
+        val server = JDAServer(guild(emptyList(), listOf(container(pagination(threads)))))
+
+        assertEquals("thread-150", server.getChannelName(150L))
+        // beyond the limit of 200 threads per source, so the id is not resolved
+        assertNull(server.getChannelName(250L))
+    }
+
+    @Test
+    fun testDetachedServerResolvesNoMentions() = runBlocking {
+        val guild = guild(listOf(thread(3L, "active-thread")), emptyList())
+        val server = DetachedJDAServer(guild)
+
+        assertNull(server.getMemberName(1L))
+        assertNull(server.getRoleName(2L))
+        assertNull(server.getChannelName(3L))
+    }
+
+    @Test
+    fun testChannelUsesTheServerOverride() {
+        val messageChannel = stub(GuildMessageChannel::class.java) { _, _ -> null }
+        val override = DetachedJDAServer(guild(emptyList(), emptyList()))
+
+        assertEquals(override, JDAChannel(messageChannel, override).server)
     }
 }

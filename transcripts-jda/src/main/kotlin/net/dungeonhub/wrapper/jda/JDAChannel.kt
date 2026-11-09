@@ -5,7 +5,13 @@ import net.dungeonhub.wrapper.DiscordMessage
 import net.dungeonhub.wrapper.DiscordServer
 import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel
 
-class JDAChannel(val channel: GuildMessageChannel): DiscordChannel<JDAFramework> {
+/**
+ * @param serverOverride resolves mentions instead of the channel's own guild, e.g. for messages of another context
+ */
+class JDAChannel(
+    val channel: GuildMessageChannel,
+    private val serverOverride: DiscordServer? = null
+): DiscordChannel<JDAFramework> {
     override val framework: JDAFramework
         get() = JDAFramework(channel.jda)
     override val name: String
@@ -13,7 +19,7 @@ class JDAChannel(val channel: GuildMessageChannel): DiscordChannel<JDAFramework>
     // shared by all messages of this channel, so looked up names are only fetched once
     private val jdaServer by lazy { JDAServer(channel.guild) }
     override val server: DiscordServer
-        get() = jdaServer
+        get() = serverOverride ?: jdaServer
     // reading the messages starts a new transcript generation, so names are looked up fresh instead of stale
     override val messages: List<DiscordMessage>
         get() {
