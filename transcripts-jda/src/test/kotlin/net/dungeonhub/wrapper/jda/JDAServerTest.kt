@@ -136,7 +136,7 @@ class JDAServerTest {
     }
 
     @Test
-    fun testReadingMessagesOfAReusedChannelRefreshesNames() = runBlocking {
+    fun testStartingAGenerationOnAReusedChannelRefreshesNames() = runBlocking {
         var requests = 0
         val guild = guild(listOf(thread(3L, "active-thread")), emptyList(), onActiveRequest = { requests++ })
         val messageChannel = stub(GuildMessageChannel::class.java) { method, _ ->
@@ -155,7 +155,7 @@ class JDAServerTest {
         assertEquals(1, requests)
 
         // starting a new transcript generation must not reuse the names of the previous one
-        channel.messages
+        channel.startGeneration()
         assertEquals("active-thread", channel.server.getChannelName(3L))
         assertEquals(2, requests)
     }

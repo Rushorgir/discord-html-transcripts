@@ -47,10 +47,13 @@ class NameCache(
             names[id]?.let { if (isValid(it)) return it.value }
 
             val own = InFlight()
-            val running = inFlight.putIfAbsent(id, own)
+            // registering the lookup and noting the generation happen together, so clear() can't run in between
+            val (running, startedIn) = synchronized(lock) {
+                inFlight.putIfAbsent(id, own) to generation
+            }
 
             if (running == null) {
-                return lookupAndStore(id, own, lookup)
+                return lookupAndStore(id, own, startedIn, lookup)
             }
 
             try {
@@ -64,17 +67,18 @@ class NameCache(
         }
     }
 
-    private suspend fun lookupAndStore(id: Long, own: InFlight, lookup: suspend (Long) -> String?): String? {
-        val startedIn = synchronized(lock) { generation }
-
+    private suspend fun lookupAndStore(
+        id: Long,
+        own: InFlight,
+        startedIn: Long,
+        lookup: suspend (Long) -> String?
+    ): String? {
         try {
             val name = lookup(id)
 
             synchronized(lock) {
-                if (name != null && startedIn == generation) {
-                    store(id, name)
-                } else if (name == null && startedIn == generation) {
-                    names.remove(id)
+                if (startedIn == generation) {
+                    if (name != null) store(id, name) else names.remove(id)
                 }
             }
 

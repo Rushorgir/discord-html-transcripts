@@ -28,6 +28,8 @@ object DiscordHtmlTranscripts {
         channel: DiscordChannel<FW>,
         messages: List<DiscordMessage>
     ): String {
+        channel.startGeneration()
+
         val htmlTemplate = javaClass.classLoader.getResourceAsStream("template.html")
 
         val document = Jsoup.parse(htmlTemplate!!, "UTF-8", "")

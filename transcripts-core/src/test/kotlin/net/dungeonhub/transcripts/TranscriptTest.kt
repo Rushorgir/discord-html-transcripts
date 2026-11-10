@@ -253,6 +253,25 @@ class TranscriptTest {
     }
 
     @Test
+    fun testEveryGenerationStartsFresh() = runBlocking {
+        var generations = 0
+        val channel = object : DiscordChannel<DiscordFramework> {
+            override val framework: DiscordFramework = object : DiscordFramework {}
+            override val name = "general"
+            override val server: DiscordServer = mockServer
+            override val messages: List<DiscordMessage> = emptyList()
+            override fun startGeneration() {
+                generations++
+            }
+        }
+
+        DiscordHtmlTranscripts.createTranscript(channel)
+        DiscordHtmlTranscripts.generateFromMessages(channel, emptyList())
+
+        assertEquals(2, generations)
+    }
+
+    @Test
     fun testNameCacheCachesOnlySuccessfulLookups() = runBlocking {
         val cache = net.dungeonhub.wrapper.NameCache()
         var lookups = 0

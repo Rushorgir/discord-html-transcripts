@@ -18,10 +18,11 @@ class KordChannel(val channel: GuildMessageChannel) : DiscordChannel<KordFramewo
     private val kordServer by lazy { runBlocking { KordServer(channel.getGuild()) } }
     override val server: DiscordServer
         get() = kordServer
-    // reading the messages starts a new transcript generation, so names are looked up fresh instead of stale
+    // a new transcript generation must look names up fresh instead of reusing stale ones
+    override fun startGeneration() = kordServer.clearCache()
+
     override val messages: List<DiscordMessage>
         get() = runBlocking {
-            kordServer.clearCache()
             channel.withStrategy(EntitySupplyStrategy.rest).messages.map { KordMessage(it, this@KordChannel) }.toList()
         }
 }

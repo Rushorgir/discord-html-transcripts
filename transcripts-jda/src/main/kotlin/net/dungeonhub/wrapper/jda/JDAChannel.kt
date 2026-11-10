@@ -20,13 +20,11 @@ class JDAChannel(
     private val jdaServer by lazy { JDAServer(channel.guild) }
     override val server: DiscordServer
         get() = serverOverride ?: jdaServer
-    // reading the messages starts a new transcript generation, so names are looked up fresh instead of stale
-    override val messages: List<DiscordMessage>
-        get() {
-            jdaServer.clearCache()
+    // a new transcript generation must look names up fresh instead of reusing stale ones
+    override fun startGeneration() = jdaServer.clearCache()
 
-            return channel.iterableHistory.stream()
-                .map { JDAMessage(it, this) }
-                .toList()
-        }
+    override val messages: List<DiscordMessage>
+        get() = channel.iterableHistory.stream()
+            .map { JDAMessage(it, this) }
+            .toList()
 }
